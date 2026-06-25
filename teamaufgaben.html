@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Praxis Teamaufgaben</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f0f2f5; color: #333; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  /* ── Header ── */
+  header {
+    background: #2c3e50;
+    color: white;
+    padding: 9px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 1.1rem; white-space: nowrap; }
+  .user-bar { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+  .user-bar span { font-size: 0.73rem; color: #aaa; white-space: nowrap; }
+  .btn-user {
+    padding: 4px 12px; border: 2px solid #555; border-radius: 20px;
+    background: transparent; color: #ccc; cursor: pointer;
+    font-size: 0.8rem; font-family: Arial, sans-serif; transition: all 0.15s;
+  }
+  .btn-user:hover { border-color: #aaa; color: white; }
+  .btn-user.active { background: #f39c12; border-color: #f39c12; color: white; font-weight: bold; }
+  .spacer { flex: 1; }
+  .header-btns { display: flex; gap: 5px; flex-wrap: wrap; }
+  .header-btns button {
+    padding: 5px 11px; border: none; border-radius: 5px;
+    cursor: pointer; font-size: 0.78rem; font-family: Arial, sans-serif;
+  }
+  #btn-new { background: #27ae60; color: white; }
+  #btn-reset { background: #e67e22; color: white; }
+  #btn-print { background: #3498db; color: white; }
+  #btn-help { background: #7f8c8d; color: white; }
+  #btn-migrate { background: #8e44ad; color: white; }
+  #btn-overview { background: #16a085; color: white; }
+
+  /* ── Overview mode ── */
+  .overview-card {
+    background: white; border-radius: 4px; padding: 5px 7px;
+    font-size: 0.72rem; line-height: 1.4;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex; align-items: flex-start; gap: 6px; flex-shrink: 0;
+  }
+  .station[data-id="1"] .overview-card { border-left: 4px solid #3498db; }
+  .station[data-id="2"] .overview-card { border-left: 4px solid #27ae60; }
+  .station[data-id="3"] .overview-card { border-left: 4px solid #e67e22; }
+  .station[data-id="4"] .overview-card { border-left: 4px solid #8e44ad; }
+  .station[data-id="5"] .overview-card { border-left: 4px solid #c0a000; }
+  .overview-card-text { flex: 1; }
+  .overview-badge {
+    flex-shrink: 0; font-size: 0.68rem; background: #2c3e50;
+    color: white; border-radius: 10px; padding: 1px 6px;
+    white-space: nowrap; align-self: center; cursor: default;
+  }
+  .overview-badge.count-1 { background: #95a5a6; }
+  .overview-badge.count-2 { background: #2980b9; }
+  .overview-badge.count-3 { background: #27ae60; }
+  .overview-badge.count-4, .overview-badge.count-5 { background: #e67e22; }
+
+  /* ── Loading overlay ── */
+  #loading-overlay {
+    position: fixed; inset: 0; background: rgba(255,255,255,0.85);
+    z-index: 9998; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px;
+  }
+  #loading-overlay .spinner {
+    width: 36px; height: 36px; border: 4px solid #ddd;
+    border-top-color: #3498db; border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  #loading-overlay p { font-size: 0.9rem; color: #555; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Help modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: white; border-radius: 8px; padding: 24px 28px;
+    max-width: 520px; width: 90%; max-height: 85vh; overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  }
+  .modal h2 { font-size: 1rem; margin-bottom: 14px; color: #2c3e50; }
+  .modal h3 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: .05em; color: #7f8c8d; margin: 14px 0 5px; }
+  .modal p, .modal li { font-size: 0.82rem; line-height: 1.55; color: #333; }
+  .modal ul { padding-left: 18px; }
+  .modal li { margin-bottom: 4px; }
+  .modal-close {
+    float: right; background: none; border: none; font-size: 1.2rem;
+    cursor: pointer; color: #999; line-height: 1; margin-top: -4px;
+  }
+  .modal-close:hover { color: #333; }
+
+  /* ── Board ── */
+  .board {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── Pool ── */
+  #pool {
+    background: #dde1e7;
+    border-right: 2px solid #bbb;
+    overflow-y: auto;
+    padding: 8px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  #pool h2 {
+    font-size: 0.73rem; text-transform: uppercase; letter-spacing: .06em;
+    color: #666; margin-bottom: 3px; padding: 0 2px; flex-shrink: 0;
+  }
+
+  /* ── Right pane ── */
+  .right-pane {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Stations grid (5 rooms, 3+2) ── */
+  .stations {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* Station 5 spans from col 1-2 to be wider, station 4 in col 3 of row 2 */
+  /* Natural flow: 1 2 3 / 4 5 _ → let 4 & 5 just sit in cols 1 & 2 */
+
+  .station {
+    border: 1.5px solid rgba(0,0,0,0.15);
+    overflow-y: auto;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 0;
+  }
+  .station.drag-over { filter: brightness(0.88); }
+
+  /* Colors */
+  .station[data-id="1"] { background: #d4eaff; border-color: #3498db; }
+  .station[data-id="2"] { background: #d5f5e3; border-color: #27ae60; }
+  .station[data-id="3"] { background: #fde8d8; border-color: #e67e22; }
+  .station[data-id="4"] { background: #f4d7f7; border-color: #8e44ad; }
+  .station[data-id="5"] { background: #fdf9d4; border-color: #c0a000; }
+
+  .station-header { display: flex; align-items: center; padding: 2px 4px; border-radius: 4px; margin-bottom: 1px; flex-shrink: 0; }
+  .station[data-id="1"] .station-header { background: #3498db22; }
+  .station[data-id="2"] .station-header { background: #27ae6022; }
+  .station[data-id="3"] .station-header { background: #e67e2222; }
+  .station[data-id="4"] .station-header { background: #8e44ad22; }
+  .station[data-id="5"] .station-header { background: #c0a00022; }
+  .station[data-id="6"] { background: #f0f0f0; border-color: #999; }
+  .station[data-id="6"] .station-header { background: #99999922; }
+  .station[data-id="6"] .station-name-input { color: #555; }
+  .station-comment {
+    flex: 1; resize: none; border: none; background: transparent;
+    font-family: Arial, sans-serif; font-size: 0.78rem; line-height: 1.5;
+    outline: none; padding: 2px 4px; color: #333;
+  }
+
+  .station-name-input {
+    font-size: 0.76rem; font-weight: bold; text-transform: uppercase;
+    letter-spacing: .04em; border: none; background: transparent;
+    width: 100%; outline: none; font-family: Arial, sans-serif;
+  }
+  .station[data-id="1"] .station-name-input { color: #1a6fa8; }
+  .station[data-id="2"] .station-name-input { color: #1a7a43; }
+  .station[data-id="3"] .station-name-input { color: #a85a10; }
+  .station[data-id="4"] .station-name-input { color: #6a2f83; }
+  .station[data-id="5"] .station-name-input { color: #7a6600; }
+
+  /* ── Comment bar ── */
+  .comment-bar {
+    border-top: 2px solid #bbb;
+    background: #f7f7f0;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .comment-bar label { font-size: 0.75rem; color: #666; white-space: nowrap; font-weight: bold; }
+  .comment-bar textarea {
+    flex: 1;
+    height: 48px;
+    font-family: Arial, sans-serif;
+    font-size: 0.78rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 4px 7px;
+    resize: none;
+    background: white;
+    line-height: 1.4;
+  }
+  .comment-bar textarea:focus { outline: none; border-color: #3498db; }
+
+  /* ── Pool card ── */
+  .pool-card {
+    background: white; border-radius: 4px; padding: 4px 6px;
+    font-size: 0.72rem; line-height: 1.3; cursor: grab; user-select: none;
+    border-left: 4px solid #bbb; box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    display: flex; align-items: flex-start; gap: 4px; flex-shrink: 0;
+  }
+  .pool-card:active { cursor: grabbing; }
+  .pool-card.dragging { opacity: 0.35; }
+
+  .pool-card.assigned-1 { border-left-color: #3498db; background: #edf5ff; }
+  .pool-card.assigned-2 { border-left-color: #27ae60; background: #edfaf3; }
+  .pool-card.assigned-3 { border-left-color: #e67e22; background: #fef6ed; }
+  .pool-card.assigned-4 { border-left-color: #8e44ad; background: #f9eeff; }
+  .pool-card.assigned-5 { border-left-color: #c0a000; background: #fdfae8; }
+
+  .pool-card-text { flex: 1; outline: none; min-width: 0; }
+  .pool-card-text:focus { background: #fffde7; border-radius: 2px; }
+
+  .assign-dots { display: flex; flex-wrap: wrap; gap: 2px; flex-shrink: 0; align-self: center; max-width: 20px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dot[data-s="1"] { background: #3498db; }
+  .dot[data-s="2"] { background: #27ae60; }
+  .dot[data-s="3"] { background: #e67e22; }
+  .dot[data-s="4"] { background: #8e44ad; }
+  .dot[data-s="5"] { background: #c0a000; }
+
+  .pool-card-actions { opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
+  .pool-card:hover .pool-card-actions { opacity: 1; }
+
+  /* ── Station card ── */
+  .station-card {
+    background: white; border-radius: 4px; padding: 4px 6px;
+    font-size: 0.72rem; line-height: 1.3; cursor: grab; user-select: none;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    display: flex; align-items: flex-start; gap: 4px; flex-shrink: 0;
+  }
+  .station-card:active { cursor: grabbing; }
+  .station-card.dragging { opacity: 0.35; }
+
+  .station[data-id="1"] .station-card { border-left: 4px solid #3498db; }
+  .station[data-id="2"] .station-card { border-left: 4px solid #27ae60; }
+  .station[data-id="3"] .station-card { border-left: 4px solid #e67e22; }
+  .station[data-id="4"] .station-card { border-left: 4px solid #8e44ad; }
+  .station[data-id="5"] .station-card { border-left: 4px solid #c0a000; }
+
+  /* Assignment-order number badge */
+  .card-num {
+    font-weight: bold; font-size: 0.78rem; flex-shrink: 0;
+    min-width: 16px; text-align: right;
+    background: #eee; border-radius: 3px;
+    padding: 0 3px; line-height: 1.5;
+    align-self: flex-start;
+  }
+  .station[data-id="1"] .card-num { background: #3498db22; color: #1a6fa8; }
+  .station[data-id="2"] .card-num { background: #27ae6022; color: #1a7a43; }
+  .station[data-id="3"] .card-num { background: #e67e2222; color: #a85a10; }
+  .station[data-id="4"] .card-num { background: #8e44ad22; color: #6a2f83; }
+  .station[data-id="5"] .card-num { background: #c0a00022; color: #7a6600; }
+
+  .station-card-text { flex: 1; outline: none; min-width: 0; }
+  .station-card-text:focus { background: #fffde7; border-radius: 2px; }
+
+  .station-card-actions { opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
+  .station-card:hover .station-card-actions { opacity: 1; }
+
+  .btn-del {
+    background: #e74c3c; color: white; border: none; border-radius: 3px;
+    width: 16px; height: 16px; font-size: 10px; cursor: pointer;
+    padding: 0; line-height: 16px; text-align: center;
+  }
+
+  .drop-placeholder {
+    border: 2px dashed #aaa; border-radius: 4px; height: 26px;
+    background: rgba(255,255,255,0.4); pointer-events: none; flex-shrink: 0;
+  }
+
+  /* ── Print ── */
+  @media print {
+    header { display: none !important; }
+    body { display: block; height: auto; overflow: visible; }
+    .board { display: block; }
+    #pool { display: none !important; }
+    .right-pane { display: block; }
+    .stations { display: grid; grid-template-columns: 1fr 1fr 1fr; height: auto; overflow: visible; }
+    .station { overflow: visible; page-break-inside: avoid; min-height: 150px; }
+    .station-card { cursor: default !important; box-shadow: none !important; }
+    .station-card-actions, .pool-card-actions { display: none !important; }
+    .station-name-input { pointer-events: none; }
+    .station-comment { border: 1px solid #ccc; height: auto; min-height: 40px; background: white; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>&#128203; Praxis Teamaufgaben</h1>
+  <div class="user-bar">
+    <span>Benutzer:</span>
+    <button class="btn-user" data-user="Andrea">Andrea</button>
+    <button class="btn-user" data-user="Jasmin">Jasmin</button>
+    <button class="btn-user" data-user="Sylvia">Sylvia</button>
+    <button class="btn-user" data-user="Vanessa">Vanessa</button>
+    <button class="btn-user" data-user="Gaby">Gaby</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="header-btns">
+    <button id="btn-new" onclick="addNewTask()">+ Neue Aufgabe</button>
+    <button id="btn-reset" onclick="resetState()">&#8634; Zur&#252;cksetzen</button>
+    <button id="btn-print" onclick="window.print()">&#128438; Drucken</button>
+    <button id="btn-migrate" onclick="migrateFromLocalStorage()" style="display:none">&#8593; Alte Daten übernehmen</button>
+    <button id="btn-overview" onclick="toggleOverview()">&#128202; Übersicht</button>
+    <button id="btn-help" onclick="document.getElementById('help-modal').classList.add('open')">&#10067; Anleitung</button>
+  </div>
+</header>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p>Daten werden geladen …</p>
+</div>
+
+<div id="help-modal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('help-modal').classList.remove('open')">&#x2715;</button>
+    <h2>&#10067; Anleitung – Praxis Teamaufgaben</h2>
+
+    <h3>Benutzer wählen</h3>
+    <p>Zuerst oben den eigenen Namen auswählen. Jede Person hat ihre eigene Ansicht – Zuweisungen, Raumbezeichnungen, Textänderungen und Notizen werden getrennt gespeichert.</p>
+
+    <h3>Aufgaben zuweisen</h3>
+    <ul>
+      <li>Aufgaben aus der linken Liste per <strong>Drag &amp; Drop</strong> in einen der fünf Räume ziehen.</li>
+      <li>Innerhalb eines Raums können Karten ebenfalls per Drag &amp; Drop umsortiert werden.</li>
+      <li>Eine Aufgabe zurück in die linke Liste ziehen entfernt sie aus dem Raum.</li>
+      <li>Farbige Punkte auf einer Aufgabenkarte zeigen, in welchen Räumen sie bereits eingeteilt ist.</li>
+    </ul>
+
+    <h3>Texte bearbeiten</h3>
+    <ul>
+      <li><strong>Doppelklick</strong> auf einen Aufgabentext (links oder im Raum) öffnet die Bearbeitung.</li>
+      <li>Mit <strong>Enter</strong> oder Klick außerhalb wird die Bearbeitung beendet und gespeichert.</li>
+      <li>Textänderungen gelten nur für den aktiven Benutzer und verändern die gemeinsame Basisliste nicht.</li>
+    </ul>
+
+    <h3>Raumbezeichnungen</h3>
+    <p>Die Titel der fünf Räume können direkt angeklickt und umbenannt werden – auch das wird pro Benutzer gespeichert.</p>
+
+    <h3>Neue Aufgabe</h3>
+    <p>Mit <strong>+ Neue Aufgabe</strong> kann ein eigener Eintrag zur gemeinsamen Aufgabenliste hinzugefügt werden.</p>
+
+    <h3>Notizen / Kommentar</h3>
+    <p>Das sechste Feld (rechts unten) dient als freies Notizfeld – pro Benutzer gespeichert.</p>
+
+    <h3>Zurücksetzen</h3>
+    <p><strong>Zurücksetzen</strong> löscht alle Zuweisungen und Notizen des aktiven Benutzers (nach Bestätigung).</p>
+
+    <h3>Drucken</h3>
+    <p>Die Druckansicht zeigt nur die Räume mit den zugewiesenen Aufgaben – ohne linke Liste und Steuerleiste.</p>
+  </div>
+</div>
+
+<div class="board">
+  <div id="pool">
+    <h2>Aufgaben</h2>
+  </div>
+
+  <div class="right-pane">
+    <div class="stations">
+      <div class="station" data-id="1">
+        <div class="station-header"><input class="station-name-input" value="Empfang / Anmeldung"></div>
+      </div>
+      <div class="station" data-id="2">
+        <div class="station-header"><input class="station-name-input" value="Laptop Sekretariat"></div>
+      </div>
+      <div class="station" data-id="3">
+        <div class="station-header"><input class="station-name-input" value="Laptop Eingang"></div>
+      </div>
+      <div class="station" data-id="4">
+        <div class="station-header"><input class="station-name-input" value="Infusionen"></div>
+      </div>
+      <div class="station" data-id="5">
+        <div class="station-header"><input class="station-name-input" value="Sonstiges / Keller"></div>
+      </div>
+      <div class="station" data-id="6">
+        <div class="station-header"><input class="station-name-input" value="&#128172; Notizen / Kommentar"></div>
+        <textarea id="comment-field" class="station-comment" placeholder="Notizen, Hinweise, Bemerkungen …"></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const TASKS_DEFAULT = [
+  "Terminvergabe- und planung","Auskünfte","Telefonate","Emails bearbeiten",
+  "Patientendaten erfassen und verwalten, ecard stecken",
+  "Befunde einscannen, eintragen, korrekt und verständlich benennen",
+  "Praxis aufsperren/zusperren, Aufgang auf Hindernisse/Eis kontrollieren und beheben",
+  "PCs hinauffahren, Laborgeräte starten, Software inkl Harn-/Laborsoftware, nach der Ordi nicht mehr verwendete PCs und Geräte herunterfahren",
+  "Med Bestellung auspacken, überprüfen, Medikamente einordnen, sortieren mit Datumskontrolle (auch Ärztemusterschrank)",
+  "Medikamente herrichten und eingeben, nachbestellen",
+  "Bewilligungsanfragen erstellen, evtl Bestellung mit Rezept",
+  "Abrechnung mit Kassen, Pauschalen PVN versenden",
+  "Blutabnahme, Infusion anhängen, Pat. beobachten, evtl umhängen",
+  "Infusionen herrichten","Harnkontrolle",
+  "Labor: Röhrchen und Harnbehältnisse/Stuhltests vorbereiten, Pat. erklären, nach Abnahme kontrollieren und vollständig Labordienst mitgeben, Nachbestellung Verbrauchsmaterial/Abgabe Nadelbehältnisse beim Fahrer",
+  "Fingerstich für BB CRP/Zucker/INR","Blutdruck messen",
+  "EKG schreiben und auf PC übertragen","Verbandwechsel","Arzt assistieren",
+  "für VU und DMP Gewicht, Größe, Bauchumfang messen - Fragebögen ausdrucken und Stuhltest ab 45 mitgeben",
+  "Zeitdokumentation täglich eintragen","Urlaubsplanung",
+  "Kassieren und Registrierkasse kontrollieren","Massagen eintragen inkl Leistung",
+  "Besteck im Desinfektionsbecken reinigen",
+  "Desinfektionsmittel im Desinfektionsbecken und Klemmenbehältnis alle 3 Tage wechseln",
+  "Autoklaven befüllen und steril ausräumen","Software- und Preisupdates einspielen",
+  "DAME Befunde abrufen und PVN Daten versenden - täglich, sicherheitshalber immer die letzten 3 Tage",
+  "Transportscheine, Verordnungen, Überweisungen, Krankenstände, Pflegefreistellungen zur Unterschrift vorbereiten",
+  "Tagesprotokoll kontrollieren - Leistungen, Diagnosen, Impfungen vollständig eingetragen",
+  "Behandlungsräume nach Ordination kontrollieren, reinigen, Bedarfsmaterial nachfüllen, Leintücher wechseln, Müll wegtragen, Blutabnahmematerialen usw an ihren Ort zurücklegen, Schränke sortieren",
+  "Vorbereitung für Spezialuntersuchungen wie OGTT, Patientenaufklärung zum richtigen Verhalten vor/bei Untersuchungen",
+  "Patientenbegleitung von Empfang über Ablaufinfo, Terminvergabe, Kassieren und Verabschiedung, evtl Beruhigung",
+  "Patienteneinlass zum Arzt","Wartezeiten managen, Prioritäten setzen",
+  "Ordinationsbestellung Verbandsmaterialien/Axon Lab","Gerätewartung, Reagenzien nachfüllen",
+  "Dokumentation von Leistungen, Infusionen, Medikamentenänderungen inkl Überprüfung der Dauermedikamente",
+  "Befunde für Besprechungen vorbereiten, evtl ausdrucken, Patienten mit in die Ordi geben",
+  "Impfungen vorbereiten, in Kartei eintragen, Impfpass vorbereiten, Pat. mit in die Ordi geben",
+  "Impfliste für BH führen, evtl senden","Einkaufen (Jause, Milch)",
+  "Sendungen verfassen/beschriften, zur Post bringen, Pakete entgegennehmen",
+  "Stempel einstellen, Kalender prüfen","Kolleginnen ausbilden, gegenseitige Hilfe bei Fragen",
+  "Suchtgifte kontrollieren, Suchtgiftbuch führen","Chargenrückrufe bearbeiten",
+  "Kartei auf fehlende Impfungen/Untersuchungen wie DMP, VU, Blutabnahmen, Blutdruckkontrollen durchsehen - evtl Termine planen",
+  "Visiten vorbereiten, evtl fahren (DGKS)","Umsatzlisten ausdrucken",
+  "Verkaufsware (Anmeldung/Glasschrank) anordnen, nachsortieren, bewerben",
+  "Kühlschränke kontrollieren (Ablaufdaten, Temperatur, Vereisungsschutz)",
+  "Patientenschulung und Ausgabe BZ-/RR Messgeräte, (Insulin-)pens",
+  "Problemlösung mit Firmen - Labor, Software, Geräte, …",
+  "Hausapothekenbestellung versenden","Aufstocklisten durchschauen"
+];
+
+let currentUser = null;
+let draggingCard = null;
+let dragSource = null;
+let placeholder = null;
+
+// ── JSONbin storage ──
+const JSONBIN_KEY = '$2a$10$Aw0oMM5nKNUppdgCNBMpGehHKB3YM9IBoNeFrokRzGW7CKMeHR9rG';
+let JSONBIN_BIN_ID = '6a3cc736f5f4af5e292d1c4d';
+
+let remoteState = null; // gesamter Zustand im Speicher
+let saveTimer = null;
+
+function emptyRemoteState() {
+  return {
+    pool: TASKS_DEFAULT.map((t, i) => ({ id: 'task' + i, text: t })),
+    users: {},
+    lastUser: null
+  };
+}
+
+async function loadRemoteState() {
+  const storedBin = localStorage.getItem('teamaufgaben_bin_id');
+  if (storedBin) JSONBIN_BIN_ID = storedBin;
+
+  if (!JSONBIN_BIN_ID) {
+    // Neue Bin erstellen
+    const res = await fetch('https://api.jsonbin.io/v3/b', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Name': 'Praxis Teamaufgaben' },
+      body: JSON.stringify(emptyRemoteState())
+    });
+    const data = await res.json();
+    JSONBIN_BIN_ID = data.metadata.id;
+    localStorage.setItem('teamaufgaben_bin_id', JSONBIN_BIN_ID);
+    showBinIdBanner(JSONBIN_BIN_ID);
+    return emptyRemoteState();
+  }
+
+  const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+    headers: { 'X-Master-Key': JSONBIN_KEY }
+  });
+  const data = await res.json();
+  const state = data.record;
+  // Repair leere Pool-Texte
+  if (state.pool) {
+    state.pool.forEach((t, i) => {
+      if (!(t.text && t.text.trim()) && t.id === 'task' + i && TASKS_DEFAULT[i]) t.text = TASKS_DEFAULT[i];
+    });
+  }
+  return state;
+}
+
+async function pushRemoteState() {
+  if (!remoteState || !JSONBIN_BIN_ID) return;
+  try {
+    await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_KEY },
+      body: JSON.stringify(remoteState)
+    });
+  } catch(e) { console.warn('Speichern fehlgeschlagen:', e); }
+}
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(pushRemoteState, 1500);
+}
+
+function showBinIdBanner(id) {
+  const banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#e74c3c;color:white;padding:10px 16px;z-index:9999;font-size:0.85rem;text-align:center;';
+  banner.innerHTML = `<strong>Einmalige Einrichtung:</strong> Bitte diese Bin-ID in den Code eintragen (JSONBIN_BIN_ID = '${id}'): <strong>${id}</strong> &nbsp;<button onclick="navigator.clipboard.writeText('${id}');this.textContent='✓ Kopiert!'" style="margin-left:8px;padding:2px 8px;border:none;border-radius:3px;cursor:pointer;">Kopieren</button>`;
+  document.body.prepend(banner);
+}
+
+// ── Pool tasks ──
+function getPoolTasks() {
+  return remoteState ? remoteState.pool : TASKS_DEFAULT.map((t, i) => ({ id: 'task' + i, text: t }));
+}
+function savePoolTasks() {
+  if (!remoteState) return;
+  remoteState.pool = [];
+  document.querySelectorAll('#pool .pool-card').forEach(c => {
+    remoteState.pool.push({ id: c.dataset.taskId, text: c.querySelector('.pool-card-text').textContent });
+  });
+  scheduleSave();
+}
+
+// ── Per-user state ──
+function getUserState(user) {
+  if (remoteState && remoteState.users && remoteState.users[user]) return remoteState.users[user];
+  return {
+    stationNames: ['Empfang / Anmeldung','Laptop Sekretariat','Laptop Eingang','Infusionen','Sonstiges / Keller'],
+    stations: {'1':[],'2':[],'3':[],'4':[],'5':[]},
+    poolTexts: {},
+    comment: ''
+  };
+}
+function saveUserState() {
+  if (!currentUser || !remoteState) return;
+  const state = {
+    stationNames: [],
+    stations: {'1':[],'2':[],'3':[],'4':[],'5':[]},
+    poolTexts: {},
+    comment: document.getElementById('comment-field').value
+  };
+  document.querySelectorAll('.station-name-input').forEach((inp, i) => { state.stationNames[i] = inp.value; });
+  document.querySelectorAll('#pool .pool-card').forEach(c => {
+    state.poolTexts[c.dataset.taskId] = c.querySelector('.pool-card-text').textContent;
+  });
+  document.querySelectorAll('.station').forEach(s => {
+    const sid = s.dataset.id;
+    s.querySelectorAll('.station-card').forEach(c => {
+      state.stations[sid].push({ taskId: c.dataset.taskId, text: c.querySelector('.station-card-text').textContent, seq: Number(c.dataset.seq) });
+    });
+  });
+  if (!remoteState.users) remoteState.users = {};
+  remoteState.users[currentUser] = state;
+  remoteState.lastUser = currentUser;
+  scheduleSave();
+  updateAssignmentNumbers();
+  updatePoolMarkers();
+}
+
+// ── Assignment-order numbering ──
+// Each station-card has data-seq (timestamp). Across all stations, cards for the
+// same taskId are ranked by seq ascending → that rank is the displayed number.
+function updateAssignmentNumbers() {
+  const byTask = {};
+  document.querySelectorAll('.station-card').forEach(c => {
+    const tid = c.dataset.taskId;
+    if (!byTask[tid]) byTask[tid] = [];
+    byTask[tid].push(c);
+  });
+  Object.values(byTask).forEach(cards => {
+    cards.sort((a, b) => Number(a.dataset.seq) - Number(b.dataset.seq));
+    cards.forEach((c, i) => { c.querySelector('.card-num').textContent = (i + 1) + '.'; });
+  });
+}
+
+// ── Pool markers ──
+function getAssignmentMap() {
+  // taskId → array of stationIds (sorted by seq, deduplicated preserving first occurrence)
+  const map = {};
+  const seqMap = {}; // taskId → array of {sid, seq}
+  document.querySelectorAll('.station-card').forEach(c => {
+    const tid = c.dataset.taskId;
+    const sid = c.closest('.station').dataset.id;
+    if (!seqMap[tid]) seqMap[tid] = [];
+    seqMap[tid].push({ sid, seq: Number(c.dataset.seq) });
+  });
+  Object.entries(seqMap).forEach(([tid, arr]) => {
+    arr.sort((a, b) => a.seq - b.seq);
+    const seen = new Set();
+    map[tid] = arr.map(x => x.sid).filter(s => { if (seen.has(s)) return false; seen.add(s); return true; });
+  });
+  return map;
+}
+
+function updatePoolMarkers() {
+  const map = getAssignmentMap();
+  document.querySelectorAll('.pool-card').forEach(card => {
+    const tid = card.dataset.taskId;
+    const sids = map[tid] || [];
+    card.classList.remove('assigned-1','assigned-2','assigned-3','assigned-4','assigned-5');
+    let dots = card.querySelector('.assign-dots');
+    if (!dots) {
+      dots = document.createElement('div');
+      dots.className = 'assign-dots';
+      card.insertBefore(dots, card.querySelector('.pool-card-actions'));
+    }
+    dots.innerHTML = '';
+    if (sids.length > 0) {
+      card.classList.add('assigned-' + sids[0]);
+      sids.forEach(sid => {
+        const dot = document.createElement('div');
+        dot.className = 'dot'; dot.dataset.s = sid;
+        const inp = document.querySelector(`.station[data-id="${sid}"] .station-name-input`);
+        dot.title = inp ? inp.value : 'Raum ' + sid;
+        dots.appendChild(dot);
+      });
+    }
+  });
+}
+
+// ── Touch drag (iOS / mobile) ──
+let touchState = null; // { card, source, startX, startY, timer, dragging, clone, offsetX, offsetY }
+
+function initTouchDrag(card, source) {
+  card.addEventListener('touchstart', e => {
+    if (e.target.closest('[contenteditable="true"]')) return;
+    if (e.target.closest('.btn-del')) return;
+    const touch = e.touches[0];
+    touchState = {
+      card, source,
+      startX: touch.clientX, startY: touch.clientY,
+      offsetX: touch.clientX - card.getBoundingClientRect().left,
+      offsetY: touch.clientY - card.getBoundingClientRect().top,
+      dragging: false, clone: null, timer: null
+    };
+    touchState.timer = setTimeout(() => {
+      touchState.dragging = true;
+      draggingCard = card; dragSource = source;
+      placeholder = document.createElement('div');
+      placeholder.className = 'drop-placeholder';
+      const clone = card.cloneNode(true);
+      clone.style.cssText = `position:fixed;pointer-events:none;z-index:9999;opacity:0.85;width:${card.offsetWidth}px;box-shadow:0 6px 20px rgba(0,0,0,0.3);border-radius:4px;`;
+      clone.style.left = (touchState.startX - touchState.offsetX) + 'px';
+      clone.style.top  = (touchState.startY - touchState.offsetY) + 'px';
+      document.body.appendChild(clone);
+      touchState.clone = clone;
+      card.style.opacity = '0.3';
+    }, 300);
+  }, { passive: true });
+
+  card.addEventListener('touchmove', e => {
+    if (!touchState) return;
+    const touch = e.touches[0];
+    if (!touchState.dragging) {
+      const dx = touch.clientX - touchState.startX;
+      const dy = touch.clientY - touchState.startY;
+      if (Math.sqrt(dx*dx + dy*dy) > 8) { clearTimeout(touchState.timer); touchState = null; }
+      return;
+    }
+    e.preventDefault();
+    touchState.clone.style.left = (touch.clientX - touchState.offsetX) + 'px';
+    touchState.clone.style.top  = (touch.clientY - touchState.offsetY) + 'px';
+
+    touchState.clone.style.display = 'none';
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    touchState.clone.style.display = '';
+
+    document.querySelectorAll('.drag-over').forEach(x => x.classList.remove('drag-over'));
+    const station = el && el.closest('.station:not([data-id="6"])');
+    const pool = el && el.closest('#pool');
+    if (station) {
+      station.classList.add('drag-over');
+      const after = getDragAfter(station, touch.clientY);
+      after ? station.insertBefore(placeholder, after) : station.appendChild(placeholder);
+    } else if (pool && source === 'station') {
+      pool.classList.add('drag-over');
+      if (placeholder.parentNode) placeholder.remove();
+    } else {
+      if (placeholder.parentNode) placeholder.remove();
+    }
+  }, { passive: false });
+
+  function touchEnd(e) {
+    if (!touchState) return;
+    clearTimeout(touchState.timer);
+    if (!touchState.dragging) { touchState = null; return; }
+
+    const touch = e.changedTouches[0];
+    touchState.clone.remove();
+    card.style.opacity = '';
+    if (placeholder && placeholder.parentNode) placeholder.remove();
+    document.querySelectorAll('.drag-over').forEach(x => x.classList.remove('drag-over'));
+
+    touchState.clone.style.display = 'none';
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+
+    const station = el && el.closest('.station:not([data-id="6"])');
+    const pool = el && el.closest('#pool');
+
+    if (station) {
+      if (source === 'pool') {
+        const newCard = createStationCard(card.dataset.taskId, card.querySelector('.pool-card-text').textContent, Date.now());
+        const after = getDragAfter(station, touch.clientY);
+        after ? station.insertBefore(newCard, after) : station.appendChild(newCard);
+      } else {
+        const after = getDragAfter(station, touch.clientY);
+        after ? station.insertBefore(card, after) : station.appendChild(card);
+      }
+      updateAssignmentNumbers(); updatePoolMarkers(); saveUserState();
+    } else if (pool && source === 'station') {
+      card.remove();
+      updateAssignmentNumbers(); updatePoolMarkers(); saveUserState();
+    }
+
+    draggingCard = null; dragSource = null; placeholder = null; touchState = null;
+  }
+  card.addEventListener('touchend', touchEnd);
+  card.addEventListener('touchcancel', touchEnd);
+}
+
+// ── Card factories ──
+function createPoolCard(task) {
+  const card = document.createElement('div');
+  card.className = 'pool-card';
+  card.draggable = true;
+  card.dataset.taskId = task.id;
+
+  const dots = document.createElement('div');
+  dots.className = 'assign-dots';
+
+  const text = document.createElement('span');
+  text.className = 'pool-card-text';
+  text.contentEditable = 'false';
+  text.textContent = task.text;
+  text.addEventListener('dblclick', e => {
+    if (!currentUser) return;
+    e.stopPropagation();
+    text.contentEditable = 'true';
+    card.draggable = false;
+    text.focus();
+    const range = document.createRange(); range.selectNodeContents(text);
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+  });
+  text.addEventListener('blur', () => { text.contentEditable = 'false'; card.draggable = true; saveUserState(); });
+  text.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); text.blur(); } });
+
+  const actions = document.createElement('div');
+  actions.className = 'pool-card-actions';
+  const del = document.createElement('button');
+  del.className = 'btn-del'; del.title = 'Aufgabe löschen'; del.textContent = '✕';
+  del.onclick = e => {
+    e.stopPropagation();
+    if (confirm('Aufgabe löschen?\nAlle Zuweisungen werden entfernt.')) {
+      document.querySelectorAll(`.station-card[data-task-id="${task.id}"]`).forEach(c => c.remove());
+      card.remove();
+      savePoolTasks(); saveUserState();
+      updateAssignmentNumbers(); updatePoolMarkers();
+    }
+  };
+  actions.appendChild(del);
+
+  card.appendChild(dots);
+  card.appendChild(text);
+  card.appendChild(actions);
+
+  card.addEventListener('dragstart', () => {
+    draggingCard = card; dragSource = 'pool';
+    placeholder = document.createElement('div');
+    placeholder.className = 'drop-placeholder';
+    setTimeout(() => card.classList.add('dragging'), 0);
+  });
+  card.addEventListener('dragend', () => {
+    card.classList.remove('dragging');
+    placeholder && placeholder.remove();
+    draggingCard = null; dragSource = null; placeholder = null;
+  });
+  initTouchDrag(card, 'pool');
+  return card;
+}
+
+
+function createStationCard(taskId, text, seq) {
+  const card = document.createElement('div');
+  card.className = 'station-card';
+  card.draggable = true;
+  card.dataset.taskId = taskId;
+  card.dataset.seq = seq || Date.now();
+
+  const num = document.createElement('span');
+  num.className = 'card-num';
+  num.textContent = '?';
+
+  const textEl = document.createElement('span');
+  textEl.className = 'station-card-text';
+  textEl.contentEditable = 'false';
+  textEl.textContent = text;
+  textEl.addEventListener('dblclick', e => {
+    e.stopPropagation();
+    textEl.contentEditable = 'true';
+    card.draggable = false;
+    textEl.focus();
+    const range = document.createRange(); range.selectNodeContents(textEl);
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+  });
+  textEl.addEventListener('blur', () => { textEl.contentEditable = 'false'; card.draggable = true; });
+  textEl.addEventListener('input', () => {
+    saveUserState();
+  });
+  textEl.addEventListener('keydown', e => { if (e.key==='Enter'){e.preventDefault();textEl.blur();} });
+
+  const actions = document.createElement('div');
+  actions.className = 'station-card-actions';
+  const del = document.createElement('button');
+  del.className = 'btn-del'; del.title = 'Aus Raum entfernen'; del.textContent = '✕';
+  del.onclick = e => {
+    e.stopPropagation();
+    card.remove();
+    updateAssignmentNumbers(); updatePoolMarkers(); saveUserState();
+  };
+  actions.appendChild(del);
+
+  card.appendChild(num);
+  card.appendChild(textEl);
+  card.appendChild(actions);
+
+  card.addEventListener('dragstart', () => {
+    draggingCard = card; dragSource = 'station';
+    placeholder = document.createElement('div');
+    placeholder.className = 'drop-placeholder';
+    setTimeout(() => card.classList.add('dragging'), 0);
+  });
+  card.addEventListener('dragend', () => {
+    card.classList.remove('dragging');
+    placeholder && placeholder.remove();
+    draggingCard = null; dragSource = null; placeholder = null;
+    updateAssignmentNumbers(); updatePoolMarkers(); saveUserState();
+  });
+  initTouchDrag(card, 'station');
+  return card;
+}
+
+// ── Drag helpers ──
+function getDragAfter(container, y) {
+  const items = [...container.querySelectorAll('.station-card:not(.dragging)')];
+  return items.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closest.offset) return { offset, element: child };
+    return closest;
+  }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+function setupStation(station) {
+  station.addEventListener('dragover', e => {
+    e.preventDefault();
+    station.classList.add('drag-over');
+    if (placeholder) {
+      const after = getDragAfter(station, e.clientY);
+      after ? station.insertBefore(placeholder, after) : station.appendChild(placeholder);
+    }
+  });
+  station.addEventListener('dragleave', e => {
+    if (!station.contains(e.relatedTarget)) station.classList.remove('drag-over');
+  });
+  station.addEventListener('drop', e => {
+    e.preventDefault();
+    station.classList.remove('drag-over');
+    if (!draggingCard) return;
+    if (dragSource === 'pool') {
+      const tid = draggingCard.dataset.taskId;
+      const newCard = createStationCard(tid, draggingCard.querySelector('.pool-card-text').textContent, Date.now());
+      const after = getDragAfter(station, e.clientY);
+      after ? station.insertBefore(newCard, after) : station.appendChild(newCard);
+    } else {
+      const after = getDragAfter(station, e.clientY);
+      after ? station.insertBefore(draggingCard, after) : station.appendChild(draggingCard);
+    }
+    updateAssignmentNumbers(); updatePoolMarkers(); saveUserState();
+  });
+}
+
+// Pool accepts station cards back (removes assignment)
+const poolEl = document.getElementById('pool');
+poolEl.addEventListener('dragover', e => { if (dragSource==='station') e.preventDefault(); });
+poolEl.addEventListener('dragleave', e => { if (!poolEl.contains(e.relatedTarget)) poolEl.classList.remove('drag-over'); });
+poolEl.addEventListener('drop', e => {
+  e.preventDefault();
+  if (dragSource==='station' && draggingCard) {
+    draggingCard.remove();
+    updateAssignmentNumbers(); updatePoolMarkers(); saveUserState();
+  }
+});
+
+document.querySelectorAll('.station:not([data-id="6"])').forEach(setupStation);
+document.querySelectorAll('.station-name-input').forEach(inp => inp.addEventListener('change', saveUserState));
+document.getElementById('comment-field').addEventListener('input', saveUserState);
+
+// ── User switch ──
+function switchUser(user) {
+  currentUser = user;
+  if (remoteState) { remoteState.lastUser = user; scheduleSave(); }
+  document.querySelectorAll('.btn-user').forEach(b => b.classList.toggle('active', b.dataset.user === user));
+
+  // Reset pool card texts to shared base before applying user overrides
+  const baseTasks = getPoolTasks();
+  baseTasks.forEach(t => {
+    const card = document.querySelector(`#pool .pool-card[data-task-id="${t.id}"]`);
+    if (card) card.querySelector('.pool-card-text').textContent = t.text;
+  });
+
+  // Clear stations
+  document.querySelectorAll('.station').forEach(s => s.querySelectorAll('.station-card').forEach(c => c.remove()));
+
+  const state = getUserState(user);
+
+  // Station names
+  document.querySelectorAll('.station-name-input').forEach((inp, i) => {
+    if (state.stationNames && state.stationNames[i] !== undefined) inp.value = state.stationNames[i];
+  });
+
+  // Station cards
+  document.querySelectorAll('.station').forEach(s => {
+    const sid = s.dataset.id;
+    (state.stations[sid] || []).forEach(item => {
+      s.appendChild(createStationCard(item.taskId, item.text, item.seq || Date.now()));
+    });
+  });
+
+  // Pool text overrides
+  if (state.poolTexts) {
+    document.querySelectorAll('#pool .pool-card').forEach(c => {
+      const t = state.poolTexts[c.dataset.taskId];
+      if (t) c.querySelector('.pool-card-text').textContent = t;
+    });
+  }
+
+  // Comment
+  document.getElementById('comment-field').value = state.comment || '';
+
+  updateAssignmentNumbers();
+  updatePoolMarkers();
+}
+
+document.querySelectorAll('.btn-user').forEach(btn => btn.addEventListener('click', () => switchUser(btn.dataset.user)));
+
+// ── New task ──
+function addNewTask() {
+  const text = prompt('Text der neuen Aufgabe:');
+  if (!text || !text.trim()) return;
+  const id = 'task_' + Date.now();
+  poolEl.appendChild(createPoolCard({ id, text: text.trim() }));
+  savePoolTasks();
+}
+
+// ── Reset ──
+function resetState() {
+  if (!currentUser) { alert('Bitte zuerst einen Benutzer auswählen.'); return; }
+  if (!confirm(`Alle Zuweisungen und Kommentar von ${currentUser} zurücksetzen?`)) return;
+  if (remoteState && remoteState.users) delete remoteState.users[currentUser];
+  scheduleSave();
+  switchUser(currentUser);
+}
+
+// ── Overview mode ──
+let overviewActive = false;
+
+function toggleOverview() {
+  overviewActive ? exitOverview() : enterOverview();
+}
+
+function enterOverview() {
+  overviewActive = true;
+  document.getElementById('btn-overview').textContent = '✕ Übersicht schließen';
+  document.getElementById('btn-overview').style.background = '#c0392b';
+
+  const users = remoteState ? remoteState.users || {} : {};
+
+  // For each user, compute rank per (taskId, stationId):
+  // rank = position when all assignments of that taskId (across all stations) are sorted by seq
+  // userRanks[user][taskId][sid] = rank (1-based)
+  const userRanks = {};
+  Object.entries(users).forEach(([userName, state]) => {
+    if (!state.stations) return;
+    userRanks[userName] = {};
+    const taskSeqs = {}; // taskId → [{sid, seq}]
+    Object.entries(state.stations).forEach(([sid, cards]) => {
+      cards.forEach(card => {
+        if (!taskSeqs[card.taskId]) taskSeqs[card.taskId] = [];
+        taskSeqs[card.taskId].push({ sid, seq: card.seq || 0 });
+      });
+    });
+    Object.entries(taskSeqs).forEach(([taskId, entries]) => {
+      entries.sort((a, b) => a.seq - b.seq);
+      userRanks[userName][taskId] = {};
+      entries.forEach((e, i) => { userRanks[userName][taskId][e.sid] = i + 1; });
+    });
+  });
+
+  // Collect per station: taskId → { text, rankGroups: {rank → [userName]} }
+  const byStation = {};
+  for (let sid = 1; sid <= 5; sid++) byStation[sid] = new Map();
+
+  Object.entries(users).forEach(([userName, state]) => {
+    if (!state.stations) return;
+    Object.entries(state.stations).forEach(([sid, cards]) => {
+      if (!byStation[sid]) return;
+      cards.forEach(card => {
+        if (!byStation[sid].has(card.taskId)) {
+          const baseText = (remoteState.pool || []).find(t => t.id === card.taskId)?.text || card.text;
+          const userText = (state.poolTexts && state.poolTexts[card.taskId]) || baseText;
+          byStation[sid].set(card.taskId, { text: userText, rankGroups: {}, total: 0 });
+        }
+        const entry = byStation[sid].get(card.taskId);
+        const rank = (userRanks[userName][card.taskId] || {})[sid] || 1;
+        if (!entry.rankGroups[rank]) entry.rankGroups[rank] = [];
+        entry.rankGroups[rank].push(userName);
+        entry.total++;
+      });
+    });
+  });
+
+  // Render
+  for (let sid = 1; sid <= 5; sid++) {
+    const station = document.querySelector(`.station[data-id="${sid}"]`);
+    station.querySelectorAll('.station-card').forEach(c => c.style.display = 'none');
+    station.querySelectorAll('.overview-card').forEach(c => c.remove());
+
+    const entries = [...byStation[sid].entries()].sort((a, b) => b[1].total - a[1].total);
+    entries.forEach(([, { text, rankGroups, total }]) => {
+      const card = document.createElement('div');
+      card.className = 'overview-card';
+
+      const textEl = document.createElement('span');
+      textEl.className = 'overview-card-text';
+      textEl.textContent = text;
+
+      const badge = document.createElement('span');
+      badge.className = `overview-badge count-${Math.min(total, 5)}`;
+      const ranks = Object.keys(rankGroups).map(Number).sort((a,b) => a - b);
+      badge.textContent = ranks.map(r => r + '. ' + rankGroups[r].join(', ')).join(' — ');
+      badge.title = total + ' Person(en)';
+
+      card.appendChild(textEl);
+      card.appendChild(badge);
+      station.appendChild(card);
+    });
+  }
+}
+
+function exitOverview() {
+  overviewActive = false;
+  document.getElementById('btn-overview').textContent = '📊 Übersicht';
+  document.getElementById('btn-overview').style.background = '#16a085';
+  document.querySelectorAll('.station-card').forEach(c => c.style.display = '');
+  document.querySelectorAll('.overview-card').forEach(c => c.remove());
+}
+
+// ── Migration from localStorage ──
+function checkMigration() {
+  if (localStorage.getItem('praxis_v3_pool')) {
+    document.getElementById('btn-migrate').style.display = '';
+  }
+}
+
+async function migrateFromLocalStorage() {
+  if (!confirm('Alte Daten aus diesem Browser in den gemeinsamen Speicher übernehmen?\nDabei werden die aktuellen Daten im gemeinsamen Speicher überschrieben.')) return;
+  const pool = JSON.parse(localStorage.getItem('praxis_v3_pool') || 'null');
+  if (pool) {
+    pool.forEach((t, i) => {
+      if (!(t.text && t.text.trim()) && t.id === 'task' + i && TASKS_DEFAULT[i]) t.text = TASKS_DEFAULT[i];
+    });
+    remoteState.pool = pool;
+  }
+  ['Andrea','Jasmin','Sylvia','Vanessa','Gaby'].forEach(user => {
+    const raw = localStorage.getItem('praxis_v3_user_' + user);
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    if (state.poolTexts) Object.keys(state.poolTexts).forEach(k => { if (!state.poolTexts[k]) delete state.poolTexts[k]; });
+    if (!remoteState.users) remoteState.users = {};
+    remoteState.users[user] = state;
+  });
+  const lastUser = localStorage.getItem('praxis_v3_last_user');
+  if (lastUser) remoteState.lastUser = lastUser;
+
+  await pushRemoteState();
+  alert('Übertragung abgeschlossen! Die Schaltfläche wird ausgeblendet.');
+  document.getElementById('btn-migrate').style.display = 'none';
+
+  // Seite neu laden damit alles aus JSONbin dargestellt wird
+  location.reload();
+}
+
+// ── Init ──
+(async function init() {
+  const overlay = document.getElementById('loading-overlay');
+  try {
+    remoteState = await loadRemoteState();
+  } catch(e) {
+    console.error('Laden fehlgeschlagen:', e);
+    remoteState = emptyRemoteState();
+  }
+  overlay.style.display = 'none';
+
+  getPoolTasks().forEach(t => poolEl.appendChild(createPoolCard(t)));
+  checkMigration();
+  const last = remoteState.lastUser;
+  if (last) switchUser(last);
+})();
+</script>
+</body>
+</html>
