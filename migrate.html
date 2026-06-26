@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teamaufgaben – Datenmigration</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #f0f2f5; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 16px; box-sizing: border-box; }
+  .box { background: white; border-radius: 10px; padding: 28px 24px; max-width: 420px; width: 100%; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+  h1 { font-size: 1.1rem; color: #2c3e50; margin-bottom: 6px; }
+  p { font-size: 0.85rem; color: #555; line-height: 1.5; margin-bottom: 14px; }
+  .found { background: #eafaf1; border: 1px solid #27ae60; border-radius: 6px; padding: 10px 14px; margin-bottom: 18px; font-size: 0.85rem; color: #1a7a43; }
+  .none { background: #fdf0f0; border: 1px solid #e74c3c; border-radius: 6px; padding: 10px 14px; margin-bottom: 18px; font-size: 0.85rem; color: #c0392b; }
+  button { width: 100%; padding: 12px; background: #8e44ad; color: white; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; font-family: Arial, sans-serif; }
+  button:disabled { background: #bbb; cursor: default; }
+  .success { background: #eafaf1; border: 1px solid #27ae60; border-radius: 6px; padding: 14px; text-align: center; font-size: 0.9rem; color: #1a7a43; font-weight: bold; }
+  .error { background: #fdf0f0; border: 1px solid #e74c3c; border-radius: 6px; padding: 10px 14px; font-size: 0.85rem; color: #c0392b; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>📤 Teamaufgaben – Datenmigration</h1>
+  <p>Dieses Tool überträgt Ihre lokal gespeicherten Daten in den gemeinsamen Online-Speicher. Bitte öffnen Sie diese Datei im selben Browser, in dem Sie bisher die Teamaufgaben verwendet haben.</p>
+  <div id="status"></div>
+  <button id="btn" onclick="migrate()" disabled>Daten übertragen</button>
+</div>
+
+<script>
+const JSONBIN_KEY = '$2a$10$Aw0oMM5nKNUppdgCNBMpGehHKB3YM9IBoNeFrokRzGW7CKMeHR9rG';
+const JSONBIN_BIN_ID = '6a3cc736f5f4af5e292d1c4d';
+const USERS = ['Andrea','Jasmin','Sylvia','Vanessa','Gaby'];
+const TASKS_DEFAULT = [
+  "Terminvergabe- und planung","Auskünfte","Telefonate","Emails bearbeiten",
+  "Patientendaten erfassen und verwalten, ecard stecken",
+  "Befunde einscannen, eintragen, korrekt und verständlich benennen",
+  "Praxis aufsperren/zusperren, Aufgang auf Hindernisse/Eis kontrollieren und beheben",
+  "PCs hinauffahren, Laborgeräte starten, Software inkl Harn-/Laborsoftware, nach der Ordi nicht mehr verwendete PCs und Geräte herunterfahren",
+  "Med Bestellung auspacken, überprüfen, Medikamente einordnen, sortieren mit Datumskontrolle (auch Ärztemusterschrank)",
+  "Medikamente herrichten und eingeben, nachbestellen",
+  "Bewilligungsanfragen erstellen, evtl Bestellung mit Rezept",
+  "Abrechnung mit Kassen, Pauschalen PVN versenden",
+  "Blutabnahme, Infusion anhängen, Pat. beobachten, evtl umhängen",
+  "Infusionen herrichten","Harnkontrolle",
+  "Labor: Röhrchen und Harnbehältnisse/Stuhltests vorbereiten, Pat. erklären, nach Abnahme kontrollieren und vollständig Labordienst mitgeben, Nachbestellung Verbrauchsmaterial/Abgabe Nadelbehältnisse beim Fahrer",
+  "Fingerstich für BB CRP/Zucker/INR","Blutdruck messen",
+  "EKG schreiben und auf PC übertragen","Verbandwechsel","Arzt assistieren",
+  "für VU und DMP Gewicht, Größe, Bauchumfang messen - Fragebögen ausdrucken und Stuhltest ab 45 mitgeben",
+  "Zeitdokumentation täglich eintragen","Urlaubsplanung",
+  "Kassieren und Registrierkasse kontrollieren","Massagen eintragen inkl Leistung",
+  "Besteck im Desinfektionsbecken reinigen",
+  "Desinfektionsmittel im Desinfektionsbecken und Klemmenbehältnis alle 3 Tage wechseln",
+  "Autoklaven befüllen und steril ausräumen","Software- und Preisupdates einspielen",
+  "DAME Befunde abrufen und PVN Daten versenden - täglich, sicherheitshalber immer die letzten 3 Tage",
+  "Transportscheine, Verordnungen, Überweisungen, Krankenstände, Pflegefreistellungen zur Unterschrift vorbereiten",
+  "Tagesprotokoll kontrollieren - Leistungen, Diagnosen, Impfungen vollständig eingetragen",
+  "Behandlungsräume nach Ordination kontrollieren, reinigen, Bedarfsmaterial nachfüllen, Leintücher wechseln, Müll wegtragen, Blutabnahmematerialen usw an ihren Ort zurücklegen, Schränke sortieren",
+  "Vorbereitung für Spezialuntersuchungen wie OGTT, Patientenaufklärung zum richtigen Verhalten vor/bei Untersuchungen",
+  "Patientenbegleitung von Empfang über Ablaufinfo, Terminvergabe, Kassieren und Verabschiedung, evtl Beruhigung",
+  "Patienteneinlass zum Arzt","Wartezeiten managen, Prioritäten setzen",
+  "Ordinationsbestellung Verbandsmaterialien/Axon Lab","Gerätewartung, Reagenzien nachfüllen",
+  "Dokumentation von Leistungen, Infusionen, Medikamentenänderungen inkl Überprüfung der Dauermedikamente",
+  "Befunde für Besprechungen vorbereiten, evtl ausdrucken, Patienten mit in die Ordi geben",
+  "Impfungen vorbereiten, in Kartei eintragen, Impfpass vorbereiten, Pat. mit in die Ordi geben",
+  "Impfliste für BH führen, evtl senden","Einkaufen (Jause, Milch)",
+  "Sendungen verfassen/beschriften, zur Post bringen, Pakete entgegennehmen",
+  "Stempel einstellen, Kalender prüfen","Kolleginnen ausbilden, gegenseitige Hilfe bei Fragen",
+  "Suchtgifte kontrollieren, Suchtgiftbuch führen","Chargenrückrufe bearbeiten",
+  "Kartei auf fehlende Impfungen/Untersuchungen wie DMP, VU, Blutabnahmen, Blutdruckkontrollen durchsehen - evtl Termine planen",
+  "Visiten vorbereiten, evtl fahren (DGKS)","Umsatzlisten ausdrucken",
+  "Verkaufsware (Anmeldung/Glasschrank) anordnen, nachsortieren, bewerben",
+  "Kühlschränke kontrollieren (Ablaufdaten, Temperatur, Vereisungsschutz)",
+  "Patientenschulung und Ausgabe BZ-/RR Messgeräte, (Insulin-)pens",
+  "Problemlösung mit Firmen - Labor, Software, Geräte, …",
+  "Hausapothekenbestellung versenden","Aufstocklisten durchschauen"
+];
+
+// Gefundene lokale Daten prüfen
+const localUsers = USERS.filter(u => localStorage.getItem('praxis_v3_user_' + u));
+const hasPool = !!localStorage.getItem('praxis_v3_pool');
+const statusEl = document.getElementById('status');
+const btn = document.getElementById('btn');
+
+if (localUsers.length === 0) {
+  statusEl.innerHTML = '<div class="none">⚠️ Keine gespeicherten Daten in diesem Browser gefunden.<br>Bitte dieses Tool im Browser öffnen, in dem die Teamaufgaben bisher verwendet wurden.</div>';
+} else {
+  statusEl.innerHTML = `<div class="found">✓ Gefundene Daten für: <strong>${localUsers.join(', ')}</strong></div>`;
+  btn.disabled = false;
+}
+
+async function migrate() {
+  btn.disabled = true;
+  btn.textContent = 'Wird übertragen …';
+  document.getElementById('error-msg') && document.getElementById('error-msg').remove();
+
+  try {
+    // Aktuellen JSONbin-Stand laden
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+      headers: { 'X-Master-Key': JSONBIN_KEY }
+    });
+    const current = (await res.json()).record || { pool: [], users: {}, lastUser: null };
+
+    // Pool nur übernehmen wenn JSONbin-Pool leer
+    if (!current.pool || current.pool.length === 0) {
+      const pool = JSON.parse(localStorage.getItem('praxis_v3_pool') || 'null');
+      if (pool) {
+        pool.forEach((t, i) => { if (!(t.text && t.text.trim()) && t.id === 'task' + i && TASKS_DEFAULT[i]) t.text = TASKS_DEFAULT[i]; });
+        current.pool = pool;
+      } else {
+        current.pool = TASKS_DEFAULT.map((t, i) => ({ id: 'task' + i, text: t }));
+      }
+    }
+
+    // User-Daten zusammenführen
+    if (!current.users) current.users = {};
+    localUsers.forEach(user => {
+      const state = JSON.parse(localStorage.getItem('praxis_v3_user_' + user));
+      if (state.poolTexts) Object.keys(state.poolTexts).forEach(k => { if (!state.poolTexts[k]) delete state.poolTexts[k]; });
+      current.users[user] = state;
+    });
+
+    // Speichern
+    await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_KEY },
+      body: JSON.stringify(current)
+    });
+
+    btn.style.display = 'none';
+    statusEl.innerHTML = `<div class="success">✓ Erfolgreich übertragen!<br><br>Daten von <strong>${localUsers.join(', ')}</strong> sind jetzt im gemeinsamen Speicher.<br><br>Sie können diese Seite schließen und ab sofort<br><a href="https://theabyssal.github.io/teamaufgaben" target="_blank">theabyssal.github.io/teamaufgaben</a> verwenden.</div>`;
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = 'Nochmal versuchen';
+    statusEl.insertAdjacentHTML('beforeend', `<div class="error" id="error-msg">Fehler: ${e.message}</div>`);
+  }
+}
+</script>
+</body>
+</html>
