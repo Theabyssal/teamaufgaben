@@ -41,6 +41,7 @@
   #btn-help { background: #7f8c8d; color: white; }
   #btn-migrate { background: #8e44ad; color: white; }
   #btn-overview { background: #16a085; color: white; }
+  #btn-konsensus { background: #c0392b; color: white; }
 
   /* ── Overview mode ── */
   .overview-card {
@@ -96,6 +97,16 @@
   .modal p, .modal li { font-size: 0.82rem; line-height: 1.55; color: #333; }
   .modal ul { padding-left: 18px; }
   .modal li { margin-bottom: 4px; }
+  .konsensus-station { margin-bottom: 18px; }
+  .konsensus-station h3 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: .05em; color: #7f8c8d; margin: 0 0 6px; border-bottom: 2px solid #eee; padding-bottom: 4px; }
+  .konsensus-row { display: flex; align-items: baseline; gap: 8px; padding: 4px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.82rem; }
+  .konsensus-task { flex: 1; color: #333; }
+  .konsensus-votes { display: flex; gap: 3px; flex-wrap: wrap; flex-shrink: 0; }
+  .k-initial { display: inline-block; width: 20px; height: 20px; border-radius: 50%; font-size: 0.7rem; font-weight: bold; text-align: center; line-height: 20px; color: white; }
+  .k-initial.k-agree { background: #27ae60; }
+  .k-initial.k-other { background: #e67e22; }
+  .k-initial.k-none  { background: #bbb; }
+  .konsensus-no-data { font-size: 0.85rem; color: #e67e22; font-style: italic; }
   .modal-close {
     float: right; background: none; border: none; font-size: 1.2rem;
     cursor: pointer; color: #999; line-height: 1; margin-top: -4px;
@@ -316,8 +327,9 @@
     <button class="btn-user" data-user="Andrea">Andrea</button>
     <button class="btn-user" data-user="Jasmin">Jasmin</button>
     <button class="btn-user" data-user="Sylvia">Sylvia</button>
-    <button class="btn-user" data-user="Vanessa">Vanessa</button>
-    <button class="btn-user" data-user="Gaby">Gaby</button>
+    <button class="btn-user" data-user="Carmen">Carmen</button>
+    <button class="btn-user" data-user="Markus">Markus</button>
+    <button class="btn-user" data-user="Mark">Mark</button>
   </div>
   <div class="spacer"></div>
   <div class="header-btns">
@@ -326,6 +338,7 @@
     <button id="btn-print" onclick="window.print()">&#128438; Drucken</button>
     <button id="btn-migrate" onclick="migrateFromLocalStorage()" style="display:none">&#8593; Alte Daten übernehmen</button>
     <button id="btn-overview" onclick="toggleOverview()">&#128202; Übersicht</button>
+    <button id="btn-konsensus" onclick="toggleKonsensus()">&#9733; Konsensus</button>
     <button id="btn-help" onclick="document.getElementById('help-modal').classList.add('open')">&#10067; Anleitung</button>
   </div>
 </header>
@@ -372,6 +385,14 @@
 
     <h3>Drucken</h3>
     <p>Die Druckansicht zeigt nur die Räume mit den zugewiesenen Aufgaben – ohne linke Liste und Steuerleiste.</p>
+  </div>
+</div>
+
+<div id="konsensus-modal" class="modal-overlay" onclick="if(event.target===this)toggleKonsensus()">
+  <div class="modal" style="max-width:700px;width:95%;max-height:85vh;overflow-y:auto;">
+    <button class="modal-close" onclick="toggleKonsensus()">&#x2715;</button>
+    <h2>&#9733; Konsensus – Aufgabenverteilung</h2>
+    <div id="konsensus-content"></div>
   </div>
 </div>
 
@@ -1074,6 +1095,116 @@ function exitOverview() {
   document.querySelectorAll('.overview-card').forEach(c => c.remove());
 }
 
+// ── Konsensus ──
+const STATION_COLORS = ['#3498db','#27ae60','#e67e22','#8e44ad','#c0a000'];
+
+function toggleKonsensus() {
+  const modal = document.getElementById('konsensus-modal');
+  const isOpen = modal.classList.contains('open');
+  if (isOpen) { modal.classList.remove('open'); return; }
+
+  const users = remoteState ? remoteState.users || {} : {};
+  const userNames = Object.keys(users);
+  const pool = remoteState ? remoteState.pool || [] : [];
+
+  const content = document.getElementById('konsensus-content');
+
+  if (userNames.length === 0) {
+    content.innerHTML = '<p class="konsensus-no-data">Noch keine Daten vorhanden.</p>';
+    modal.classList.add('open');
+    return;
+  }
+
+  // For each task: find primary station per user (first station = lowest seq)
+  // taskId → { stationId → [userName] }
+  const taskVotes = {};
+  pool.forEach(t => { taskVotes[t.id] = {}; });
+
+  userNames.forEach(userName => {
+    const state = users[userName];
+    if (!state || !state.stations) return;
+    // Collect all assignments for this user: taskId → {sid, seq}[]
+    const taskAssignments = {};
+    Object.entries(state.stations).forEach(([sid, cards]) => {
+      cards.forEach(card => {
+        if (!taskAssignments[card.taskId]) taskAssignments[card.taskId] = [];
+        taskAssignments[card.taskId].push({ sid: Number(sid), seq: card.seq || 0 });
+      });
+    });
+    // Primary station = first by seq
+    Object.entries(taskAssignments).forEach(([taskId, assignments]) => {
+      assignments.sort((a, b) => a.seq - b.seq);
+      const primarySid = assignments[0].sid;
+      if (!taskVotes[taskId]) taskVotes[taskId] = {};
+      if (!taskVotes[taskId][primarySid]) taskVotes[taskId][primarySid] = [];
+      taskVotes[taskId][primarySid].push(userName);
+    });
+  });
+
+  // Group tasks by consensus station (most votes), only assigned tasks
+  const byStation = {};
+  for (let s = 1; s <= 5; s++) byStation[s] = [];
+
+  pool.forEach(task => {
+    const votes = taskVotes[task.id] || {};
+    const sids = Object.keys(votes).map(Number);
+    if (sids.length === 0) return; // nobody assigned this task
+    // Station with most votes
+    sids.sort((a, b) => votes[b].length - votes[a].length);
+    const winSid = sids[0];
+    byStation[winSid].push({ task, votes, winSid });
+  });
+
+  // Get station names per current user or fallback
+  const stationNames = {};
+  for (let s = 1; s <= 5; s++) {
+    const el = document.querySelector(`.station[data-id="${s}"] .station-title`);
+    stationNames[s] = el ? el.textContent.trim() : 'Station ' + s;
+  }
+
+  // Render
+  let html = '';
+  for (let s = 1; s <= 5; s++) {
+    if (byStation[s].length === 0) continue;
+    html += `<div class="konsensus-station">
+      <h3 style="border-color:${STATION_COLORS[s-1]}">${stationNames[s]}</h3>`;
+    byStation[s].forEach(({ task, votes }) => {
+      const taskText = (currentUser && users[currentUser] && users[currentUser].poolTexts && users[currentUser].poolTexts[task.id]) || task.text;
+      html += `<div class="konsensus-row"><span class="konsensus-task">${taskText}</span><span class="konsensus-votes">`;
+      userNames.forEach(u => {
+        const initial = u.charAt(0).toUpperCase();
+        // Find which station this user chose
+        const userSid = Object.entries(votes).find(([, names]) => names.includes(u))?.[0];
+        if (!userSid) {
+          html += `<span class="k-initial k-none" title="${u}: nicht zugeteilt">${initial}</span>`;
+        } else {
+          const agrees = Number(userSid) === s;
+          html += `<span class="k-initial ${agrees ? 'k-agree' : 'k-other'}" title="${u}: ${stationNames[Number(userSid)]}" style="${!agrees ? `background:${STATION_COLORS[Number(userSid)-1]}` : ''}">${initial}</span>`;
+        }
+      });
+      html += '</span></div>';
+    });
+    html += '</div>';
+  }
+
+  // Unassigned tasks
+  const unassigned = pool.filter(t => Object.keys(taskVotes[t.id] || {}).length === 0);
+  if (unassigned.length > 0) {
+    html += `<div class="konsensus-station"><h3>Nicht zugeteilt</h3>`;
+    unassigned.forEach(t => { html += `<div class="konsensus-row"><span class="konsensus-task" style="color:#aaa">${t.text}</span></div>`; });
+    html += '</div>';
+  }
+
+  html += `<p style="font-size:0.75rem;color:#aaa;margin-top:12px;">
+    <span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;"><span class="k-initial k-agree" style="display:inline-block">A</span> = stimmt zu</span>
+    <span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;"><span class="k-initial k-other" style="display:inline-block;background:#e67e22">A</span> = andere Station</span>
+    <span style="display:inline-flex;align-items:center;gap:4px;"><span class="k-initial k-none" style="display:inline-block">A</span> = nicht zugeteilt</span>
+  </p>`;
+
+  content.innerHTML = html;
+  modal.classList.add('open');
+}
+
 // ── Migration from localStorage ──
 function checkMigration() {
   if (localStorage.getItem('praxis_v3_pool')) {
@@ -1083,7 +1214,7 @@ function checkMigration() {
 
 async function migrateFromLocalStorage() {
   // Welche User haben lokale Daten?
-  const localUsers = ['Andrea','Jasmin','Sylvia','Vanessa','Gaby'].filter(u => localStorage.getItem('praxis_v3_user_' + u));
+  const localUsers = ['Andrea','Jasmin','Sylvia','Vanessa','Gaby','Carmen','Markus','Mark'].filter(u => localStorage.getItem('praxis_v3_user_' + u));
   if (!localUsers.length && !localStorage.getItem('praxis_v3_pool')) {
     alert('Keine lokalen Daten gefunden.'); return;
   }
